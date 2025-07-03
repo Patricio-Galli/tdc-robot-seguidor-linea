@@ -1,9 +1,24 @@
+import random
+import sys
 import customtkinter as ctk
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # --- Constants ---
+## Control
+REFERENCE_VALUE = 0 # theta_o
+KP_INIT_VALUE = 1.0
+KI_INIT_VALUE = 0.1
+KD_INIT_VALUE = 0.01
+
+## Robot
+ROBOT_MASS = 1.0
+
+## Context
+FLOOR_DAMPING = 0.5
+
+## Logs
 POINTS_OF_HISTORY = 200  # Number of data points to show on the graphs
 
 # --- Simulation Components ---
@@ -19,12 +34,21 @@ class PIDController:
         self.previous_error = 0
 
     def update(self, error):
+        # Proportional
         p_term = self.Kp * error
+
+        # Integral
         self.integral += error * self.dt
         i_term = self.Ki * self.integral
-        derivative = (error - self.previous_error) / self.dt
+
+        # Derivative
+        if abs(error - self.previous_error) > 4 :
+            derivative = (error - self.previous_error) / self.dt
+        else: 
+            derivative = 0
         d_term = self.Kd * derivative
         self.previous_error = error
+
         return p_term + i_term + d_term, p_term, i_term, d_term
 
     def set_gains(self, Kp, Ki, Kd):
@@ -32,20 +56,18 @@ class PIDController:
         self.Ki = Ki
         self.Kd = Kd
         # Reset state when gains change to avoid instability
-        self.integral = 0
-        self.previous_error = 0
+        self.integral = 0.0
+        self.previous_error = 0.0
 
 class RobotModel:
     """Simulates the robot's physical dynamics (the 'plant')."""
     def __init__(self, dt):
         self.dt = dt
-        self.position = 0.0  # theta_o
+        self.position = REFERENCE_VALUE
         self.velocity = 0.0
-        self.mass = 1.0
-        self.damping = 0.5
 
     def update(self, motor_voltage):
-        acceleration = (motor_voltage - self.damping * self.velocity) / self.mass
+        acceleration = (motor_voltage - FLOOR_DAMPING * self.velocity) / ROBOT_MASS
         self.velocity += acceleration * self.dt
         self.position += self.velocity * self.dt
         return self.position
@@ -55,7 +77,7 @@ class Simulation:
     def __init__(self, dt=0.1):
         self.dt = dt
         self.time = 0.0
-        self.pid = PIDController(1.0, 0.1, 0.01, self.dt)
+        self.pid = PIDController(KP_INIT_VALUE, KI_INIT_VALUE, KD_INIT_VALUE, self.dt)
         self.robot = RobotModel(self.dt)
         self.light_perturbation = 0.0
         self.movement_perturbation = 0.0
@@ -65,7 +87,7 @@ class Simulation:
         # 1. Light perturbation (Pl(t)) affects the sensor reading.
         # This creates the error signal fed into the controller.
         feedback_signal = self.robot.position + self.light_perturbation
-        error = 0 - feedback_signal
+        error = REFERENCE_VALUE - feedback_signal
 
         # 2. PID controller calculates the required motor voltage.
         pid_output, p, i, d = self.pid.update(error)
@@ -101,15 +123,25 @@ class Simulation:
     def inject_movement_perturbation(self, amplitude):
         self.movement_perturbation = amplitude
 
+    def reset(self):
+        self.time = 0.0
+        self.robot = RobotModel(self.dt)
+        self.light_perturbation = 0.0
+        self.movement_perturbation = 0.0
+
+        # Limpiar historial de gráficos
+        for key in self.history:
+            self.history[key].clear()
+
 # --- GUI Application ---
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("PID Line Follower Simulation")
-        self.geometry("1200x800")
+        self.attributes('-fullscreen', True)
 
-        self.simulation = Simulation(dt=0.05)
+        self.simulation = Simulation(dt=0.1)
 
         # Configure grid layout
         self.grid_columnconfigure(0, weight=0)
@@ -117,9 +149,10 @@ class App(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         # Create frames
-        self.controls_frame = ctk.CTkFrame(self, width=300)
+        self.controls_frame = ctk.CTkFrame(self)
         self.controls_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ns")
-        self.controls_frame.grid_propagate(False)
+        self.controls_frame.grid_rowconfigure(0, weight=1)
+        self.controls_frame.grid_columnconfigure(0, weight=1)
 
         self.plot_frame = ctk.CTkFrame(self)
         self.plot_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
@@ -131,15 +164,21 @@ class App(ctk.CTk):
         self.after(50, self.update_loop)
 
     def setup_controls(self):
-        self.kp_slider = self.create_slider("Kp", 0, 10, 1.0)
-        self.ki_slider = self.create_slider("Ki", 0, 2, 0.1)
-        self.kd_slider = self.create_slider("Kd", 0, 1, 0.01)
+        self.kp_slider = self.create_slider("Kp", 0, 10, KP_INIT_VALUE)
+        self.ki_slider = self.create_slider("Ki", 0, 2, KI_INIT_VALUE)
+        self.kd_slider = self.create_slider("Kd", 0, 1, KD_INIT_VALUE)
 
         light_pert_button = ctk.CTkButton(self.controls_frame, text="Inject Light Perturbation", command=self.inject_light)
         light_pert_button.pack(pady=15, padx=10, fill='x')
 
         move_pert_button = ctk.CTkButton(self.controls_frame, text="Inject Movement Perturbation", command=self.inject_movement)
         move_pert_button.pack(pady=15, padx=10, fill='x')
+
+        exit_button = ctk.CTkButton(self.controls_frame, text="Close", command=self.on_closing)
+        exit_button.pack(side="bottom", pady=10, padx=10, fill='x')
+        
+        reset_button = ctk.CTkButton(self.controls_frame, text="Reset", command=self.reset_simulation)
+        reset_button.pack(side="bottom", pady=10, padx=10, fill='x')
 
     def create_slider(self, text, from_, to, initial_value):
         frame = ctk.CTkFrame(self.controls_frame)
@@ -163,10 +202,10 @@ class App(ctk.CTk):
         self.simulation.pid.set_gains(kp, ki, kd)
 
     def inject_light(self):
-        self.simulation.inject_light_perturbation(amplitude=5.0)
+        self.simulation.inject_light_perturbation(amplitude=random.uniform(-5.0, 5.0))
 
     def inject_movement(self):
-        self.simulation.inject_movement_perturbation(amplitude=-5.0)
+        self.simulation.inject_movement_perturbation(amplitude=random.uniform(-10.0, 10.0))
 
     def setup_plots(self):
         self.fig, self.axes = plt.subplots(4, 1, figsize=(10, 8), sharex=True)
@@ -190,12 +229,17 @@ class App(ctk.CTk):
 
         self.axes[0].set_ylim(-10, 10)
         self.axes[1].set_ylim(-10, 10)
-        self.axes[2].set_ylim(-20, 20)
+        self.axes[2].set_ylim(-30, 30)
         self.axes[3].set_ylim(-10, 10)
+
+        self.axes[0].set_yticks(np.arange(-10, 11, 5))
+        self.axes[1].set_yticks(np.arange(-10, 11, 5))
+        self.axes[2].set_yticks(np.arange(-30, 31, 10))
+        self.axes[3].set_yticks(np.arange(-10, 11, 5))
 
         for i, ax in enumerate(self.axes):
             if i == 2:
-                ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.45), ncol=3)
+                ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3)
             else:
                 ax.legend()
             ax.grid(True)
@@ -224,11 +268,22 @@ class App(ctk.CTk):
         if self.running:
             history = self.simulation.update()
             self.update_plots(history)
-            self.after(50, self.update_loop)
+            self.after_id = self.after(50, self.update_loop)
 
     def on_closing(self):
         self.running = False
+        if hasattr(self, 'after_id'):
+            self.after_cancel(self.after_id)
         self.destroy()
+        sys.exit()
+
+    def reset_simulation(self):
+        self.simulation.reset()
+
+        self.kp_slider.set(KP_INIT_VALUE)
+        self.ki_slider.set(KI_INIT_VALUE)
+        self.kd_slider.set(KD_INIT_VALUE)
+        self.update_pid_gains()
 
 if __name__ == "__main__":
     app = App()
