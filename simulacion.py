@@ -18,7 +18,7 @@ class ControllerConfig:
         self.label = None
 
 KP_CONFIG = ControllerConfig(name="Kp", min=0.0, max=10.0, initial=1.0)
-KI_CONFIG = ControllerConfig(name="Ki", min=0.0, max=0.9, initial=0.1)
+KI_CONFIG = ControllerConfig(name="Ki", min=0.0, max=0.9, initial=0.4)
 KD_CONFIG = ControllerConfig(name="Kd", min=0.0, max=1.0, initial=0.5)
 
 ## Robot
@@ -56,7 +56,7 @@ class PIDController:
         i_term = self.Ki * self.integral
 
         # Derivative
-        if abs(error - self.previous_error) > 4 :
+        if abs(error - self.previous_error) > 3 :
             derivative = (error - self.previous_error) / self.dt
         else: 
             derivative = 0
@@ -224,7 +224,7 @@ class App(ctk.CTk):
         self.simulation.inject_light_perturbation(amplitude=self.generate_signed_random(3.0, 5.0))
 
     def inject_movement(self):
-        self.simulation.inject_movement_perturbation(amplitude=self.generate_signed_random(3.0, 5.0))
+        self.simulation.inject_movement_perturbation(amplitude=self.generate_signed_random(5.0, 8.0))
 
     def setup_plots(self):
         self.fig, self.axes = plt.subplots(4, 1, figsize=(10, 8), sharex=True, gridspec_kw={'height_ratios': [1, 1, 2, 1.5]})

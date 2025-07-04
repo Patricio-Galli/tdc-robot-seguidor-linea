@@ -18,7 +18,7 @@
 - [ ] Chequear controladores 
   - [ ] Controlador integral (errores anteriores VS mismo scan) - en este momento no hace nada
   - [ ] Chequear direcciones de los controladores, más que nada derivativo
-  - [ ] ¿Proporcional on-off o por umbrales?
+  - [ ] Proporcional por umbrales
 
 ## 💡 Ideas futuras
 
