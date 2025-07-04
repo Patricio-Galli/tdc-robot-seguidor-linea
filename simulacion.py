@@ -18,7 +18,7 @@ class ControllerConfig:
         self.label = None
 
 KP_CONFIG = ControllerConfig(name="Kp", min=0.0, max=10.0, initial=1.0)
-KI_CONFIG = ControllerConfig(name="Ki", min=0.0, max=2.0, initial=0.1)
+KI_CONFIG = ControllerConfig(name="Ki", min=0.0, max=0.9, initial=0.1)
 KD_CONFIG = ControllerConfig(name="Kd", min=0.0, max=1.0, initial=0.01)
 
 ## Robot
@@ -26,8 +26,12 @@ ROBOT_MASS = 1.0
 
 ## Context
 FLOOR_DAMPING = 0.5
+LINE_WIDTH = 1.8
 
-## Logs
+## Simulation
+SCAN_TIME = 50
+PI_LOOP_TIME = 10
+PI_LOOP_ITERATIONS = 4
 POINTS_OF_HISTORY = 200  # Number of data points to show on the graphs
 
 # --- Simulation Components ---
@@ -60,7 +64,7 @@ class PIDController:
 
         return p_term + i_term + d_term, p_term, i_term, d_term
 
-    def set_gains(self, Kp, Ki, Kd):
+    def reset_gains(self, Kp, Ki, Kd):
         self.Kp = Kp
         self.Ki = Ki
         self.Kd = Kd
@@ -213,13 +217,13 @@ class App(ctk.CTk):
         kp = self.kp_slider.get()
         ki = self.ki_slider.get()
         kd = self.kd_slider.get()
-        self.simulation.pid.set_gains(kp, ki, kd)
+        self.simulation.pid.reset_gains(kp, ki, kd)
 
     def inject_light(self):
-        self.simulation.inject_light_perturbation(amplitude=random.uniform(-5.0, 5.0))
+        self.simulation.inject_light_perturbation(amplitude=self.generate_signed_random(3.0, 5.0))
 
     def inject_movement(self):
-        self.simulation.inject_movement_perturbation(amplitude=random.uniform(-10.0, 10.0))
+        self.simulation.inject_movement_perturbation(amplitude=self.generate_signed_random(3.0, 5.0))
 
     def setup_plots(self):
         self.fig, self.axes = plt.subplots(4, 1, figsize=(10, 8), sharex=True)
@@ -245,6 +249,7 @@ class App(ctk.CTk):
         self.axes[1].set_ylim(-10, 10)
         self.axes[2].set_ylim(-30, 30)
         self.axes[3].set_ylim(-10, 10)
+        self.axes[3].axhspan(-LINE_WIDTH/2, LINE_WIDTH/2, facecolor='lightgreen', alpha=0.7, label='Line limits')
 
         self.axes[0].set_yticks(np.arange(-10, 11, 5))
         self.axes[1].set_yticks(np.arange(-10, 11, 5))
@@ -282,7 +287,7 @@ class App(ctk.CTk):
         if self.running:
             history = self.simulation.update()
             self.update_plots(history)
-            self.after_id = self.after(50, self.update_loop)
+            self.after_id = self.after(SCAN_TIME, self.update_loop)
 
     def on_closing(self):
         self.running = False
@@ -301,6 +306,12 @@ class App(ctk.CTk):
 
         self.simulation.reset()
         self.update_pid_gains()
+
+    def generate_signed_random(self, min_value, max_value):
+        rnd = random.uniform(-max_value, max_value)
+        if (abs(rnd) < min_value):
+            return self.generate_signed_random(min_value, max_value)
+        return rnd
 
 if __name__ == "__main__":
     app = App()
