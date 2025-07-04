@@ -1,6 +1,6 @@
 import random
-import sys
 import customtkinter as ctk
+import tkinter.messagebox as messagebox
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -19,7 +19,7 @@ class ControllerConfig:
 
 KP_CONFIG = ControllerConfig(name="Kp", min=0.0, max=10.0, initial=1.0)
 KI_CONFIG = ControllerConfig(name="Ki", min=0.0, max=0.9, initial=0.1)
-KD_CONFIG = ControllerConfig(name="Kd", min=0.0, max=1.0, initial=0.01)
+KD_CONFIG = ControllerConfig(name="Kd", min=0.0, max=1.0, initial=0.5)
 
 ## Robot
 ROBOT_MASS = 1.0
@@ -32,7 +32,8 @@ LINE_WIDTH = 1.8
 SCAN_TIME = 50
 PI_LOOP_TIME = 10
 PI_LOOP_ITERATIONS = 4
-POINTS_OF_HISTORY = 200  # Number of data points to show on the graphs
+POINTS_OF_HISTORY = 500  # Number of data points to show on the graphs
+VISIBLE_SECONDS = 5
 
 # --- Simulation Components ---
 
@@ -226,7 +227,7 @@ class App(ctk.CTk):
         self.simulation.inject_movement_perturbation(amplitude=self.generate_signed_random(3.0, 5.0))
 
     def setup_plots(self):
-        self.fig, self.axes = plt.subplots(4, 1, figsize=(10, 8), sharex=True)
+        self.fig, self.axes = plt.subplots(4, 1, figsize=(10, 8), sharex=True, gridspec_kw={'height_ratios': [1, 1, 2, 1.5]})
         self.fig.subplots_adjust(hspace=0.8, bottom=0.1, top=0.95)
         plt.style.use('seaborn-v0_8-darkgrid')
 
@@ -276,9 +277,8 @@ class App(ctk.CTk):
         self.lines['resp'].set_data(time_data, history['response'])
 
         if time_data:
-            min_time, max_time = time_data[0], time_data[-1]
-            if min_time == max_time:
-                max_time = min_time + self.simulation.dt
+            max_time = time_data[-1]
+            min_time = max_time - VISIBLE_SECONDS
             for ax in self.axes:
                 ax.set_xlim(min_time, max_time)
         self.canvas.draw()
@@ -291,6 +291,13 @@ class App(ctk.CTk):
 
     def on_closing(self):
         self.running = False
+
+        save_plot = messagebox.askyesno(
+            "Save Graph",
+            "Do you want to save an image of the full graph?"
+        )
+        if save_plot:
+            self.save_full_plot()
 
         after_id = getattr(self, 'after_id', None)
         if after_id:
@@ -318,6 +325,26 @@ class App(ctk.CTk):
         if (abs(rnd) < min_value):
             return self.generate_signed_random(min_value, max_value)
         return rnd
+
+    def save_full_plot(self):
+        history = self.simulation.history
+        time_data = history['time']
+        if not time_data:
+            return
+
+        self.lines['pert'].set_data(time_data, history['total_pert'])
+        self.lines['error'].set_data(time_data, history['error'])
+        self.lines['pid_p'].set_data(time_data, history['p_out'])
+        self.lines['pid_i'].set_data(time_data, history['i_out'])
+        self.lines['pid_d'].set_data(time_data, history['d_out'])
+        self.lines['resp'].set_data(time_data, history['response'])
+
+        min_time = time_data[0]
+        max_time = time_data[-1]
+        for ax in self.axes:
+            ax.set_xlim(min_time, max_time)
+
+        self.fig.savefig("simulacion_pid.png", dpi=150)
 
 if __name__ == "__main__":
     app = App()
