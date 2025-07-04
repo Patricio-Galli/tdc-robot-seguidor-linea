@@ -1,11 +1,13 @@
 # TODO List
 
 ## 🔧 En progreso
+
 - [ ] Interfaz responsive
 
 ## 📌 Por hacer (Backlog)
+
 - [X] Boton de reset
-- [ ] Hacer que coincidan las condiciones iniciales de kp,ki y kd con las del gráfico
+- [X] Hacer que coincidan las condiciones iniciales de kp,ki y kd con las del gráfico
 - [ ] Chequear controlador integral (errores anteriores VS mismo scan)
 - [ ] Investigar logs de "invalid command"
 - [ ] Señales digitales - pixeles
@@ -13,4 +15,13 @@
 - [ ] Banda de error
 
 ## 💡 Ideas futuras
+
 - Pintar línea en el gráfico de Position (+ constante LINE_WIDTH)
+
+## Cambios
+
+- Hacer que coincidan las condiciones iniciales de kp, ki y kd con las del gráfico
+  - Las condiciones iniciales están bien, pero el gráfico al hacer reset no actualiza esos valores.
+
+
+

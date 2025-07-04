@@ -8,9 +8,18 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 # --- Constants ---
 ## Control
 REFERENCE_VALUE = 0 # theta_o
-KP_INIT_VALUE = 1.0
-KI_INIT_VALUE = 0.1
-KD_INIT_VALUE = 0.01
+
+class ControllerConfig:
+    def __init__(self, name, min, max, initial):
+        self.name = name
+        self.min = min
+        self.max = max
+        self.initial = initial
+        self.label = None
+
+KP_CONFIG = ControllerConfig(name="Kp", min=0.0, max=10.0, initial=1.0)
+KI_CONFIG = ControllerConfig(name="Ki", min=0.0, max=2.0, initial=0.1)
+KD_CONFIG = ControllerConfig(name="Kd", min=0.0, max=1.0, initial=0.01)
 
 ## Robot
 ROBOT_MASS = 1.0
@@ -77,7 +86,7 @@ class Simulation:
     def __init__(self, dt=0.1):
         self.dt = dt
         self.time = 0.0
-        self.pid = PIDController(KP_INIT_VALUE, KI_INIT_VALUE, KD_INIT_VALUE, self.dt)
+        self.pid = PIDController(KP_CONFIG.initial, KI_CONFIG.initial, KD_CONFIG.initial, self.dt)
         self.robot = RobotModel(self.dt)
         self.light_perturbation = 0.0
         self.movement_perturbation = 0.0
@@ -164,9 +173,9 @@ class App(ctk.CTk):
         self.after(50, self.update_loop)
 
     def setup_controls(self):
-        self.kp_slider = self.create_slider("Kp", 0, 10, KP_INIT_VALUE)
-        self.ki_slider = self.create_slider("Ki", 0, 2, KI_INIT_VALUE)
-        self.kd_slider = self.create_slider("Kd", 0, 1, KD_INIT_VALUE)
+        self.kp_slider = self.create_slider(KP_CONFIG)
+        self.ki_slider = self.create_slider(KI_CONFIG)
+        self.kd_slider = self.create_slider(KD_CONFIG)
 
         light_pert_button = ctk.CTkButton(self.controls_frame, text="Inject Light Perturbation", command=self.inject_light)
         light_pert_button.pack(pady=15, padx=10, fill='x')
@@ -180,7 +189,10 @@ class App(ctk.CTk):
         reset_button = ctk.CTkButton(self.controls_frame, text="Reset", command=self.reset_simulation)
         reset_button.pack(side="bottom", pady=10, padx=10, fill='x')
 
-    def create_slider(self, text, from_, to, initial_value):
+    def create_slider(self, controller_config):
+        text = controller_config.name
+        initial_value = controller_config.initial
+
         frame = ctk.CTkFrame(self.controls_frame)
         label = ctk.CTkLabel(frame, text=f"{text}: {initial_value:.2f}", width=100)
         label.pack(side='left', padx=10)
@@ -189,7 +201,9 @@ class App(ctk.CTk):
             label.configure(text=f"{text}: {value:.2f}")
             self.update_pid_gains()
 
-        slider = ctk.CTkSlider(frame, from_=from_, to=to, command=slider_command)
+        controller_config.label = label
+
+        slider = ctk.CTkSlider(frame, from_=controller_config.min, to=controller_config.max, command=slider_command)
         slider.set(initial_value)
         slider.pack(side='left', expand=True, fill='x', padx=10)
         frame.pack(pady=10, padx=10, fill="x")
@@ -278,11 +292,14 @@ class App(ctk.CTk):
         sys.exit()
 
     def reset_simulation(self):
-        self.simulation.reset()
+        self.kp_slider.set(KP_CONFIG.initial)
+        KP_CONFIG.label.configure(text=f"{KP_CONFIG.name}: {KP_CONFIG.initial:.2f}")
+        self.ki_slider.set(KI_CONFIG.initial)
+        KI_CONFIG.label.configure(text=f"{KI_CONFIG.name}: {KI_CONFIG.initial:.2f}")
+        self.kd_slider.set(KD_CONFIG.initial)
+        KD_CONFIG.label.configure(text=f"{KD_CONFIG.name}: {KD_CONFIG.initial:.2f}")
 
-        self.kp_slider.set(KP_INIT_VALUE)
-        self.ki_slider.set(KI_INIT_VALUE)
-        self.kd_slider.set(KD_INIT_VALUE)
+        self.simulation.reset()
         self.update_pid_gains()
 
 if __name__ == "__main__":
