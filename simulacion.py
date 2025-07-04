@@ -174,7 +174,7 @@ class App(ctk.CTk):
         self.setup_plots()
 
         self.running = True
-        self.after(50, self.update_loop)
+        self.after_id = self.after(50, self.update_loop)
 
     def setup_controls(self):
         self.kp_slider = self.create_slider(KP_CONFIG)
@@ -260,7 +260,7 @@ class App(ctk.CTk):
             if i == 2:
                 ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3)
             else:
-                ax.legend()
+                ax.legend(loc='upper right')
             ax.grid(True)
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_frame)
@@ -291,10 +291,16 @@ class App(ctk.CTk):
 
     def on_closing(self):
         self.running = False
-        if hasattr(self, 'after_id'):
-            self.after_cancel(self.after_id)
-        self.destroy()
-        sys.exit()
+
+        after_id = getattr(self, 'after_id', None)
+        if after_id:
+            try:
+                self.after_cancel(after_id)
+            except Exception:
+                pass
+
+        app.withdraw()
+        app.quit()
 
     def reset_simulation(self):
         self.kp_slider.set(KP_CONFIG.initial)
