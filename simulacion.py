@@ -6,10 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # --- Constants ---
-## Control
-REFERENCE_VALUE = 0 # theta_o
-
-class ControllerConfig:
+class SliceConfig:
     def __init__(self, name, min, max, initial):
         self.name = name
         self.min = min
@@ -17,9 +14,10 @@ class ControllerConfig:
         self.initial = initial
         self.label = None
 
-KP_CONFIG = ControllerConfig(name="Kp", min=0.0, max=10.0, initial=1.5)
-KI_CONFIG = ControllerConfig(name="Ki", min=0.0, max=0.9, initial=0.1)
-KD_CONFIG = ControllerConfig(name="Kd", min=0.0, max=1.0, initial=0.6)
+KP_CONFIG = SliceConfig(name="Kp", min=0.0, max=10.0, initial=1.5)
+KI_CONFIG = SliceConfig(name="Ki", min=0.0, max=0.9, initial=0.1)
+KD_CONFIG = SliceConfig(name="Kd", min=0.0, max=1.0, initial=0.6)
+REFERENCE_CONFIG = SliceConfig(name="Reference", min=-5.0, max=5.0, initial=0.0)
 
 ## Robot
 ROBOT_MASS = 1.0
@@ -101,13 +99,14 @@ class Simulation:
         self.robot = RobotModel(self.dt)
         self.light_perturbation = 0.0
         self.movement_perturbation = 0.0
-        self.history = {k: [] for k in ['time', 'error', 'p_out', 'i_out', 'd_out', 'response', 'total_pert', 'velocity']}
+        self.reference = REFERENCE_CONFIG.initial
+        self.history = {k: [] for k in ['time', 'error', 'p_out', 'i_out', 'd_out', 'response', 'total_pert', 'velocity', 'reference']}
 
     def update(self):
         # 1. Light perturbation (Pl(t)) affects the sensor reading.
         # This creates the error signal fed into the controller.
         feedback_signal = self.robot.x_axis_position + self.light_perturbation
-        error = REFERENCE_VALUE - feedback_signal
+        error = self.reference - feedback_signal
 
         # 2. PID controller calculates the required motor voltage.
         pid_output, p, i, d = self.pid.update(error)
@@ -121,7 +120,7 @@ class Simulation:
 
         # 5. Log data for plotting.
         total_pert = self.light_perturbation + self.movement_perturbation
-        self.log_data(error, p, i, d, response, total_pert)
+        self.log_data(error, p, i, d, response, total_pert, self.reference)
         self.time += self.dt
 
         # 6. Reset perturbations (they are Dirac-like, lasting one step).
@@ -130,8 +129,8 @@ class Simulation:
 
         return self.history
 
-    def log_data(self, error, p, i, d, response, total_pert):
-        data_to_log = [self.time, error, p, i, d, response, total_pert, self.robot.x_axis_velocity]
+    def log_data(self, error, p, i, d, response, total_pert, reference):
+        data_to_log = [self.time, error, p, i, d, response, total_pert, self.robot.x_axis_velocity, reference]
         for key, val in zip(self.history.keys(), data_to_log):
             self.history[key].append(val)
             if len(self.history[key]) > POINTS_OF_HISTORY:
@@ -162,6 +161,7 @@ class App(ctk.CTk):
         self.attributes('-fullscreen', True)
 
         self.simulation = Simulation(dt=0.1)
+        self.reference_slider = None
 
         # Configure grid layout
         self.grid_columnconfigure(0, weight=0)
@@ -181,12 +181,14 @@ class App(ctk.CTk):
         self.setup_plots()
 
         self.running = True
+        self.paused = False
         self.after_id = self.after(50, self.update_loop)
 
     def setup_controls(self):
         self.kp_slider = self.create_slider(KP_CONFIG)
         self.ki_slider = self.create_slider(KI_CONFIG)
         self.kd_slider = self.create_slider(KD_CONFIG)
+        self.reference_slider = self.create_slider(REFERENCE_CONFIG, self.update_reference_value)
 
         light_pert_button = ctk.CTkButton(self.controls_frame, text="Inject Light Perturbation", command=self.inject_light)
         light_pert_button.pack(pady=15, padx=10, fill='x')
@@ -194,13 +196,19 @@ class App(ctk.CTk):
         move_pert_button = ctk.CTkButton(self.controls_frame, text="Inject Movement Perturbation", command=self.inject_movement)
         move_pert_button.pack(pady=15, padx=10, fill='x')
 
-        exit_button = ctk.CTkButton(self.controls_frame, text="Close", command=self.on_closing)
-        exit_button.pack(side="bottom", pady=10, padx=10, fill='x')
+        buttons_frame = ctk.CTkFrame(self.controls_frame)
+        buttons_frame.pack(side="bottom", pady=10, padx=10, fill='x')
+
+        self.pause_button = ctk.CTkButton(buttons_frame, text="Pause", command=self.toggle_pause)
+        self.pause_button.pack(side="left", pady=10, padx=10, fill='x', expand=True)
+
+        exit_button = ctk.CTkButton(buttons_frame, text="Close", command=self.on_closing)
+        exit_button.pack(side="left", pady=10, padx=10, fill='x', expand=True)
         
         reset_button = ctk.CTkButton(self.controls_frame, text="Reset", command=self.reset_simulation)
         reset_button.pack(side="bottom", pady=10, padx=10, fill='x')
 
-    def create_slider(self, controller_config):
+    def create_slider(self, controller_config, command=None):
         text = controller_config.name
         initial_value = controller_config.initial
 
@@ -210,7 +218,10 @@ class App(ctk.CTk):
         
         def slider_command(value):
             label.configure(text=f"{text}: {value:.2f}")
-            self.update_pid_gains()
+            if command:
+                command(value)
+            else:
+                self.update_pid_gains()
 
         controller_config.label = label
 
@@ -219,6 +230,9 @@ class App(ctk.CTk):
         slider.pack(side='left', expand=True, fill='x', padx=10)
         frame.pack(pady=10, padx=10, fill="x")
         return slider
+
+    def update_reference_value(self, value):
+        self.simulation.reference = value
 
     def update_pid_gains(self):
         kp = self.kp_slider.get()
@@ -244,7 +258,8 @@ class App(ctk.CTk):
             'pid_i': self.axes[2].plot([], [], label='I')[0],
             'pid_d': self.axes[2].plot([], [], label='D')[0],
             'resp': self.axes[3].plot([], [], label='Response (θₒ)')[0],
-            'velocity': self.axes[3].plot([], [], label='Velocity', linestyle='--')[0]
+            'velocity': self.axes[3].plot([], [], label='Velocity', linestyle='--')[0],
+            'reference': self.axes[3].plot([], [], label='Reference', linestyle=':')[0]
         }
 
         self.axes[0].set_title("Perturbations")
@@ -283,6 +298,7 @@ class App(ctk.CTk):
         self.lines['pid_d'].set_data(time_data, history['d_out'])
         self.lines['resp'].set_data(time_data, history['response'])
         self.lines['velocity'].set_data(time_data, history['velocity'])
+        self.lines['reference'].set_data(time_data, history['reference'])
 
         if time_data:
             max_time = time_data[-1]
@@ -291,10 +307,19 @@ class App(ctk.CTk):
                 ax.set_xlim(min_time, max_time)
         self.canvas.draw()
 
+    def toggle_pause(self):
+        self.paused = not self.paused
+        if self.paused:
+            self.pause_button.configure(text="Resume")
+        else:
+            self.pause_button.configure(text="Pause")
+
     def update_loop(self):
-        if self.running:
+        if self.running and not self.paused:
             history = self.simulation.update()
             self.update_plots(history)
+
+        if self.running:
             self.after_id = self.after(SCAN_TIME, self.update_loop)
 
     def on_closing(self):
@@ -314,8 +339,11 @@ class App(ctk.CTk):
             except Exception:
                 pass
 
-        app.withdraw()
-        app.quit()
+        try:
+            app.withdraw()
+            app.quit()
+        except Exception:
+            pass
 
     def reset_simulation(self):
         self.kp_slider.set(KP_CONFIG.initial)
@@ -324,9 +352,12 @@ class App(ctk.CTk):
         KI_CONFIG.label.configure(text=f"{KI_CONFIG.name}: {KI_CONFIG.initial:.2f}")
         self.kd_slider.set(KD_CONFIG.initial)
         KD_CONFIG.label.configure(text=f"{KD_CONFIG.name}: {KD_CONFIG.initial:.2f}")
+        self.reference_slider.set(REFERENCE_CONFIG.initial)
+        REFERENCE_CONFIG.label.configure(text=f"{REFERENCE_CONFIG.name}: {REFERENCE_CONFIG.initial:.2f}")
 
         self.simulation.reset()
         self.update_pid_gains()
+        self.update_reference_value(REFERENCE_CONFIG.initial)
 
     def generate_signed_random(self, min_value, max_value):
         rnd = random.uniform(-max_value, max_value)
@@ -347,6 +378,7 @@ class App(ctk.CTk):
         self.lines['pid_d'].set_data(time_data, history['d_out'])
         self.lines['resp'].set_data(time_data, history['response'])
         self.lines['velocity'].set_data(time_data, history['velocity'])
+        self.lines['reference'].set_data(time_data, history['reference'])
 
         min_time = time_data[0]
         max_time = time_data[-1]
