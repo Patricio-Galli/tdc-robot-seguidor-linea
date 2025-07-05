@@ -17,9 +17,9 @@ class ControllerConfig:
         self.initial = initial
         self.label = None
 
-KP_CONFIG = ControllerConfig(name="Kp", min=0.0, max=10.0, initial=1.0)
+KP_CONFIG = ControllerConfig(name="Kp", min=0.0, max=10.0, initial=0.8)
 KI_CONFIG = ControllerConfig(name="Ki", min=0.0, max=0.9, initial=0.4)
-KD_CONFIG = ControllerConfig(name="Kd", min=0.0, max=1.0, initial=0.5)
+KD_CONFIG = ControllerConfig(name="Kd", min=0.0, max=1.0, initial=0.6)
 
 ## Robot
 ROBOT_MASS = 1.0
@@ -49,7 +49,10 @@ class PIDController:
 
     def update(self, error):
         # Proportional
-        p_term = self.Kp * error
+        if abs(error) > 4:
+            p_term = self.Kp * error
+        else:    
+            p_term = 0
 
         # Integral
         self.integral += error * self.dt
