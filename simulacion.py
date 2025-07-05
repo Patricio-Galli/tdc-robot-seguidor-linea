@@ -80,14 +80,17 @@ class RobotModel:
     """Simulates the robot's physical dynamics (the 'plant')."""
     def __init__(self, dt):
         self.dt = dt
-        self.position = REFERENCE_VALUE
-        self.velocity = 0.0
+        self.x_axis_position = 0.0 # En el centro de la línea
+        self.x_axis_velocity = 0.0 # Sigue derecho
+        self.velocity = 10  # Initial velocity
 
-    def update(self, motor_voltage):
-        acceleration = (motor_voltage - FLOOR_DAMPING * self.velocity) / ROBOT_MASS
-        self.velocity += acceleration * self.dt
-        self.position += self.velocity * self.dt
-        return self.position
+    def update(self, motor_voltage_change):
+        # Positivo indica que el motor empuja hacia la derecha
+        # Negativo indica que el motor empuja hacia la izquierda
+        x_axis_acceleration = (motor_voltage_change - FLOOR_DAMPING * self.x_axis_velocity) / ROBOT_MASS
+        self.x_axis_velocity += x_axis_acceleration * self.dt
+        self.x_axis_position += self.x_axis_velocity * self.dt
+        return self.x_axis_position
 
 class Simulation:
     """Manages the simulation based on the block diagram."""
@@ -98,12 +101,12 @@ class Simulation:
         self.robot = RobotModel(self.dt)
         self.light_perturbation = 0.0
         self.movement_perturbation = 0.0
-        self.history = {k: [] for k in ['time', 'error', 'p_out', 'i_out', 'd_out', 'response', 'total_pert']}
+        self.history = {k: [] for k in ['time', 'error', 'p_out', 'i_out', 'd_out', 'response', 'total_pert', 'velocity']}
 
     def update(self):
         # 1. Light perturbation (Pl(t)) affects the sensor reading.
         # This creates the error signal fed into the controller.
-        feedback_signal = self.robot.position + self.light_perturbation
+        feedback_signal = self.robot.x_axis_position + self.light_perturbation
         error = REFERENCE_VALUE - feedback_signal
 
         # 2. PID controller calculates the required motor voltage.
@@ -113,8 +116,8 @@ class Simulation:
         self.robot.update(pid_output)
 
         # 4. Movement perturbation (Pf(t)/Pi(t)) acts as a direct physical push on the robot.
-        self.robot.position += self.movement_perturbation
-        response = self.robot.position # The final response includes this push
+        self.robot.x_axis_position += self.movement_perturbation
+        response = self.robot.x_axis_position # The final response includes this push
 
         # 5. Log data for plotting.
         total_pert = self.light_perturbation + self.movement_perturbation
@@ -128,7 +131,7 @@ class Simulation:
         return self.history
 
     def log_data(self, error, p, i, d, response, total_pert):
-        data_to_log = [self.time, error, p, i, d, response, total_pert]
+        data_to_log = [self.time, error, p, i, d, response, total_pert, self.robot.x_axis_velocity]
         for key, val in zip(self.history.keys(), data_to_log):
             self.history[key].append(val)
             if len(self.history[key]) > POINTS_OF_HISTORY:
@@ -240,7 +243,8 @@ class App(ctk.CTk):
             'pid_p': self.axes[2].plot([], [], label='P')[0],
             'pid_i': self.axes[2].plot([], [], label='I')[0],
             'pid_d': self.axes[2].plot([], [], label='D')[0],
-            'resp': self.axes[3].plot([], [], label='Response (θₒ)')[0]
+            'resp': self.axes[3].plot([], [], label='Response (θₒ)')[0],
+            'velocity': self.axes[3].plot([], [], label='Velocity', linestyle='--')[0]
         }
 
         self.axes[0].set_title("Perturbations")
@@ -278,6 +282,7 @@ class App(ctk.CTk):
         self.lines['pid_i'].set_data(time_data, history['i_out'])
         self.lines['pid_d'].set_data(time_data, history['d_out'])
         self.lines['resp'].set_data(time_data, history['response'])
+        self.lines['velocity'].set_data(time_data, history['velocity'])
 
         if time_data:
             max_time = time_data[-1]
@@ -341,6 +346,7 @@ class App(ctk.CTk):
         self.lines['pid_i'].set_data(time_data, history['i_out'])
         self.lines['pid_d'].set_data(time_data, history['d_out'])
         self.lines['resp'].set_data(time_data, history['response'])
+        self.lines['velocity'].set_data(time_data, history['velocity'])
 
         min_time = time_data[0]
         max_time = time_data[-1]
