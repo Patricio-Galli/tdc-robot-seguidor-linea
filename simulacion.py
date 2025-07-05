@@ -98,7 +98,7 @@ class Simulation:
         self.robot = RobotModel(self.dt)
         self.light_perturbation = 0.0
         self.movement_perturbation = 0.0
-        self.history = {k: [] for k in ['time', 'error', 'p_out', 'i_out', 'd_out', 'response', 'total_pert']}
+        self.history = {k: [] for k in ['time', 'error', 'p_out', 'i_out', 'd_out', 'response', 'total_pert', 'velocity']}
 
     def update(self):
         # 1. Light perturbation (Pl(t)) affects the sensor reading.
@@ -128,7 +128,7 @@ class Simulation:
         return self.history
 
     def log_data(self, error, p, i, d, response, total_pert):
-        data_to_log = [self.time, error, p, i, d, response, total_pert]
+        data_to_log = [self.time, error, p, i, d, response, total_pert, self.robot.x_axis_velocity]
         for key, val in zip(self.history.keys(), data_to_log):
             self.history[key].append(val)
             if len(self.history[key]) > POINTS_OF_HISTORY:
@@ -240,7 +240,8 @@ class App(ctk.CTk):
             'pid_p': self.axes[2].plot([], [], label='P')[0],
             'pid_i': self.axes[2].plot([], [], label='I')[0],
             'pid_d': self.axes[2].plot([], [], label='D')[0],
-            'resp': self.axes[3].plot([], [], label='Response (θₒ)')[0]
+            'resp': self.axes[3].plot([], [], label='Response (θₒ)')[0],
+            'velocity': self.axes[3].plot([], [], label='Velocity', linestyle='--')[0]
         }
 
         self.axes[0].set_title("Perturbations")
@@ -278,6 +279,7 @@ class App(ctk.CTk):
         self.lines['pid_i'].set_data(time_data, history['i_out'])
         self.lines['pid_d'].set_data(time_data, history['d_out'])
         self.lines['resp'].set_data(time_data, history['response'])
+        self.lines['velocity'].set_data(time_data, history['velocity'])
 
         if time_data:
             max_time = time_data[-1]
@@ -341,6 +343,7 @@ class App(ctk.CTk):
         self.lines['pid_i'].set_data(time_data, history['i_out'])
         self.lines['pid_d'].set_data(time_data, history['d_out'])
         self.lines['resp'].set_data(time_data, history['response'])
+        self.lines['velocity'].set_data(time_data, history['velocity'])
 
         min_time = time_data[0]
         max_time = time_data[-1]
