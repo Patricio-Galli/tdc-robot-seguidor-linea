@@ -1,6 +1,7 @@
 import random
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
+from matplotlib.lines import Line2D
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -317,28 +318,28 @@ class App(ctk.CTk):
         plt.style.use('seaborn-v0_8-darkgrid')
 
         self.lines = {
-            'pert': self.axes[0].plot([], [], label='Total Perturbations')[0],
-            'error': self.axes[1].plot([], [], label='Error Signal (e)')[0],
-            'pid_p': self.axes[2].plot([], [], label='P')[0],
-            'pid_i': self.axes[2].plot([], [], label='I')[0],
-            'pid_d': self.axes[2].plot([], [], label='D')[0],
-            'reference': self.axes[3].plot([], [], label='Reference Value')[0],
-            'feedback': self.axes[4].plot([], [], label='Sensor Reading')[0],
+            'pert': self.axes[0].plot([], [], color='tab:blue')[0],
+            'error': self.axes[1].plot([], [], color='tab:blue')[0],
+            'pid_p': self.axes[2].plot([], [], label='P', color='tab:blue')[0],
+            'pid_i': self.axes[2].plot([], [], label='I', color='tab:orange')[0],
+            'pid_d': self.axes[2].plot([], [], label='D', color='tab:green')[0],
+            'reference': self.axes[3].plot([], [], color='tab:blue')[0],
+            'feedback': self.axes[4].plot([], [], color='tab:blue')[0],
             'velocity': self.axes[5].plot([], [], label='Velocity', linestyle='--', color='tab:orange')[0],
             'resp': self.axes[5].plot([], [], label='Position (θₒ)', color='tab:blue')[0]
         }
 
-        self.axes[0].set_title("Perturbations")
-        self.axes[1].set_title("Error Signal (e)")
-        self.axes[2].set_title("PID Controller Outputs")
-        self.axes[3].set_title("Reference Value")
-        self.axes[4].set_title("Feedback Signal (Camera Reading)")
-        self.axes[5].set_title("System Response (Position)")
+        self.axes[0].set_title("Perturbations", loc='left', fontsize=12)
+        self.axes[1].set_title("Error Signal (e)", loc='left', fontsize=12)
+        self.axes[2].set_title("PID Controller Outputs", loc='left', fontsize=12)
+        self.axes[3].set_title("Reference Value", loc='left', fontsize=12)
+        self.axes[4].set_title("Feedback Signal", loc='left', fontsize=12)
+        self.axes[5].set_title("System Response", loc='left', fontsize=12)
         self.axes[5].set_xlabel("Time (s)")
 
         self.axes[0].set_ylim(-10, 10)
         self.axes[1].set_ylim(-10, 10)
-        self.axes[2].set_ylim(-30, 30)
+        self.axes[2].set_ylim(-40, 40)
         self.axes[3].set_ylim(-6, 6)
         self.axes[4].set_ylim(-10, 10)
         self.axes[5].set_ylim(-10, 10)
@@ -346,7 +347,7 @@ class App(ctk.CTk):
 
         self.axes[0].set_yticks(np.arange(-10, 11, 5))
         self.axes[1].set_yticks(np.arange(-10, 11, 5))
-        self.axes[2].set_yticks(np.arange(-30, 31, 10))
+        self.axes[2].set_yticks(np.arange(-40, 41, 10))
         self.axes[3].set_yticks(np.arange(-5, 6, 5))
         self.axes[4].set_yticks(np.arange(-10, 11, 5))
         self.axes[5].set_yticks(np.arange(-10, 11, 5))

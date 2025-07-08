@@ -13,8 +13,9 @@
   - [ ] Chequear direcciones de los controladores, más que nada derivativo
   - [ ] Proporcional ON-OFF o por umbrales
 - [ ] Agregar unidades y tipos de señales
-- [ ] Sacar etiquetas redundantes
 - [ ] Cambiar las variables que corresponen a px (ej. feedback_signal)
+- [ ] Chequear que quede actualizado el requirements.txt
+- [ ] Chequear que no se vaya de los +-10cm el robot en position
 
 ## 💡 Ideas futuras
 
@@ -35,3 +36,4 @@
 - [X] Agregar gráficos de valor de referencia y señal medida
 - [X] Hacer que se vea la línea de posición por sobre la de velocidad
 - [X] Permitir ocultar y mostrar cada gráfico
+- [X] Sacar etiquetas redundantes
