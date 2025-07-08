@@ -100,7 +100,15 @@ class Simulation:
         self.light_perturbation = 0.0
         self.movement_perturbation = 0.0
         self.reference = REFERENCE_CONFIG.initial
-        self.history = {k: [] for k in ['time', 'error', 'p_out', 'i_out', 'd_out', 'response', 'total_pert', 'velocity', 'reference']}
+        self.history = {k: [] for k in [
+            'time', 
+            'error', 
+            'p_out', 'i_out', 'd_out', 
+            'response', 
+            'total_pert', 
+            'velocity', 
+            'reference',
+            'feedback_signal']}
 
     def update(self):
         # 1. Light perturbation (Pl(t)) affects the sensor reading.
@@ -120,7 +128,7 @@ class Simulation:
 
         # 5. Log data for plotting.
         total_pert = self.light_perturbation + self.movement_perturbation
-        self.log_data(error, p, i, d, response, total_pert, self.reference)
+        self.log_data(error, p, i, d, response, total_pert, self.reference, feedback_signal)
         self.time += self.dt
 
         # 6. Reset perturbations (they are Dirac-like, lasting one step).
@@ -129,8 +137,8 @@ class Simulation:
 
         return self.history
 
-    def log_data(self, error, p, i, d, response, total_pert, reference):
-        data_to_log = [self.time, error, p, i, d, response, total_pert, self.robot.x_axis_velocity, reference]
+    def log_data(self, error, p, i, d, response, total_pert, reference, feedback_signal):
+        data_to_log = [self.time, error, p, i, d, response, total_pert, self.robot.x_axis_velocity, reference, feedback_signal]
         for key, val in zip(self.history.keys(), data_to_log):
             self.history[key].append(val)
             if len(self.history[key]) > POINTS_OF_HISTORY:
@@ -176,9 +184,13 @@ class App(ctk.CTk):
 
         self.plot_frame = ctk.CTkFrame(self)
         self.plot_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+        self.plot_frame.grid_propagate(False)
+        self.plot_frame.grid_rowconfigure(0, weight=1)
+        self.plot_frame.grid_columnconfigure(0, weight=1)
 
         self.setup_controls()
         self.setup_plots()
+        self.update_visible_graphs()
 
         self.running = True
         self.paused = False
@@ -196,6 +208,25 @@ class App(ctk.CTk):
         move_pert_button = ctk.CTkButton(self.controls_frame, text="Inject Movement Perturbation", command=self.inject_movement)
         move_pert_button.pack(pady=15, padx=10, fill='x')
 
+        self.graph_toggles = []
+        graph_names = [
+            "Perturbations", "Error", "PID", "Reference",
+            "Feedback", "Position & Velocity"
+        ]
+
+        for i, name in enumerate(graph_names):
+            toggle = ctk.CTkCheckBox(
+                self.controls_frame,
+                text=f"Show {name}",
+                command=self.update_visible_graphs
+            )
+            toggle.select()
+            toggle.pack(padx=10, pady=3, anchor="w")
+            self.graph_toggles.append(toggle)
+
+        separator = ctk.CTkLabel(self.controls_frame, text="")
+        separator.pack(pady=10)
+
         buttons_frame = ctk.CTkFrame(self.controls_frame)
         buttons_frame.pack(side="bottom", pady=10, padx=10, fill='x')
 
@@ -207,6 +238,40 @@ class App(ctk.CTk):
         
         reset_button = ctk.CTkButton(self.controls_frame, text="Reset", command=self.reset_simulation)
         reset_button.pack(side="bottom", pady=10, padx=10, fill='x')
+
+    def update_visible_graphs(self):
+        height_ratios_all = [1, 1, 2, 1, 1, 1.5]
+        spacing = 0.05
+        top = 0.95
+        bottom = 0.1
+        visible_flags = [chk.get() == 1 for chk in self.graph_toggles]
+        visible_indices = [i for i, v in enumerate(visible_flags) if v]
+        visible_ratios = [height_ratios_all[i] for i in visible_indices]
+
+        if not visible_indices:
+            self.canvas.draw()
+            return
+
+        total_ratio = sum(visible_ratios)
+        total_spacing = spacing * (len(visible_indices) - 1)
+        available_height = top - bottom - total_spacing
+
+        # Iniciar desde la parte superior (top)
+        current_top = top
+
+        for i in range(len(self.axes)):
+            if visible_flags[i]:
+                ratio = height_ratios_all[i] / total_ratio
+                height = available_height * ratio
+                bottom_pos = current_top - height
+                self.axes[i].set_position([0.1, bottom_pos, 0.85, height])
+                self.axes[i].set_visible(True)
+                current_top = bottom_pos - spacing
+            else:
+                self.axes[i].set_position([0, 0, 0, 0])
+                self.axes[i].set_visible(False)
+
+        self.canvas.draw()
 
     def create_slider(self, controller_config, command=None):
         text = controller_config.name
@@ -247,7 +312,7 @@ class App(ctk.CTk):
         self.simulation.inject_movement_perturbation(amplitude=self.generate_signed_random(5.0, 8.0))
 
     def setup_plots(self):
-        self.fig, self.axes = plt.subplots(4, 1, figsize=(10, 8), sharex=True, gridspec_kw={'height_ratios': [1, 1, 2, 1.5]})
+        self.fig, self.axes = plt.subplots(6, 1, figsize=(10, 10), sharex=True, gridspec_kw={'height_ratios': [1, 1, 2, 1, 1, 1.5]})
         self.fig.subplots_adjust(hspace=0.8, bottom=0.1, top=0.95)
         plt.style.use('seaborn-v0_8-darkgrid')
 
@@ -257,31 +322,38 @@ class App(ctk.CTk):
             'pid_p': self.axes[2].plot([], [], label='P')[0],
             'pid_i': self.axes[2].plot([], [], label='I')[0],
             'pid_d': self.axes[2].plot([], [], label='D')[0],
-            'resp': self.axes[3].plot([], [], label='Response (θₒ)')[0],
-            'velocity': self.axes[3].plot([], [], label='Velocity', linestyle='--')[0],
-            'reference': self.axes[3].plot([], [], label='Reference', linestyle=':')[0]
+            'reference': self.axes[3].plot([], [], label='Reference Value')[0],
+            'feedback': self.axes[4].plot([], [], label='Sensor Reading')[0],
+            'velocity': self.axes[5].plot([], [], label='Velocity', linestyle='--', color='tab:orange')[0],
+            'resp': self.axes[5].plot([], [], label='Position (θₒ)', color='tab:blue')[0]
         }
 
         self.axes[0].set_title("Perturbations")
         self.axes[1].set_title("Error Signal (e)")
         self.axes[2].set_title("PID Controller Outputs")
-        self.axes[3].set_title("System Response (Position)")
-        self.axes[3].set_xlabel("Time (s)")
+        self.axes[3].set_title("Reference Value")
+        self.axes[4].set_title("Feedback Signal (Camera Reading)")
+        self.axes[5].set_title("System Response (Position)")
+        self.axes[5].set_xlabel("Time (s)")
 
         self.axes[0].set_ylim(-10, 10)
         self.axes[1].set_ylim(-10, 10)
         self.axes[2].set_ylim(-30, 30)
-        self.axes[3].set_ylim(-10, 10)
-        self.axes[3].axhspan(-LINE_WIDTH/2, LINE_WIDTH/2, facecolor='lightgreen', alpha=0.7, label='Line limits')
+        self.axes[3].set_ylim(-6, 6)
+        self.axes[4].set_ylim(-10, 10)
+        self.axes[5].set_ylim(-10, 10)
+        self.axes[5].axhspan(-LINE_WIDTH/2, LINE_WIDTH/2, facecolor='lightgreen', alpha=0.7, label='Line limits')
 
         self.axes[0].set_yticks(np.arange(-10, 11, 5))
         self.axes[1].set_yticks(np.arange(-10, 11, 5))
         self.axes[2].set_yticks(np.arange(-30, 31, 10))
-        self.axes[3].set_yticks(np.arange(-10, 11, 5))
+        self.axes[3].set_yticks(np.arange(-5, 6, 5))
+        self.axes[4].set_yticks(np.arange(-10, 11, 5))
+        self.axes[5].set_yticks(np.arange(-10, 11, 5))
 
         for i, ax in enumerate(self.axes):
             if i == 2:
-                ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3)
+                ax.legend(loc='upper right', bbox_to_anchor=(1, 1), ncol=3)
             else:
                 ax.legend(loc='upper right')
             ax.grid(True)
@@ -296,9 +368,10 @@ class App(ctk.CTk):
         self.lines['pid_p'].set_data(time_data, history['p_out'])
         self.lines['pid_i'].set_data(time_data, history['i_out'])
         self.lines['pid_d'].set_data(time_data, history['d_out'])
-        self.lines['resp'].set_data(time_data, history['response'])
         self.lines['velocity'].set_data(time_data, history['velocity'])
+        self.lines['resp'].set_data(time_data, history['response'])
         self.lines['reference'].set_data(time_data, history['reference'])
+        self.lines['feedback'].set_data(time_data, history['feedback_signal'])
 
         if time_data:
             max_time = time_data[-1]
