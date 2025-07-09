@@ -303,7 +303,7 @@ class App(ctk.CTk):
         self.update_reference_value(REFERENCE_CONFIG.initial)
 
     def save_full_plot(self):
-        history = self.simulation.history
+        history = self.simulation.history.data
         time_data = history['time']
         if not time_data:
             return
@@ -322,7 +322,7 @@ class App(ctk.CTk):
         for ax in self.axes:
             ax.set_xlim(min_time, max_time)
 
-        self.fig.savefig("simulacion_pid.png", dpi=150)
+        self.fig.savefig("assets/simulacion_pid.png", dpi=150)
 
 if __name__ == "__main__":
     app = App()

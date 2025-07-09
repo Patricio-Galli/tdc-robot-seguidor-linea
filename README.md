@@ -16,7 +16,7 @@ La solución propuesta se basa en un esquema de realimentación donde la informa
 
 ### Diagrama de bloques del sistema de control
 
-![Diagrama de bloques](diagrama_de_bloques.png)
+![Diagrama de bloques](assets/diagrama_de_bloques.png)
 
 ### Documentación
 
