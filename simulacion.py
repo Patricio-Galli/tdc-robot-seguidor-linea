@@ -1,12 +1,22 @@
-import random
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
-from matplotlib.lines import Line2D
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import control
+import utils
 
 # --- Constants ---
+## Interface
+SCAN_TIME = 50                  # (ms)      # Controls how often the interface updates on screen
+VISIBLE_SECONDS = 5
+
+## Sliders
+INITIAL_REFERENCE_VALUE = 0.0   # (px)
+INITIAL_KP = 1.5
+INITIAL_KI = 0.1
+INITIAL_KD = 0.6
+
 class SliceConfig:
     def __init__(self, name, min, max, initial):
         self.name = name
@@ -15,151 +25,10 @@ class SliceConfig:
         self.initial = initial
         self.label = None
 
-KP_CONFIG = SliceConfig(name="Kp", min=0.0, max=10.0, initial=1.5)
-KI_CONFIG = SliceConfig(name="Ki", min=0.0, max=0.9, initial=0.1)
-KD_CONFIG = SliceConfig(name="Kd", min=0.0, max=1.0, initial=0.6)
-REFERENCE_CONFIG = SliceConfig(name="Reference", min=-5.0, max=5.0, initial=0.0)
-
-## Robot
-ROBOT_MASS = 1.0
-
-## Context
-FLOOR_DAMPING = 0.5
-LINE_WIDTH = 1.8
-
-## Simulation
-SCAN_TIME = 50
-PI_LOOP_TIME = 10
-PI_LOOP_ITERATIONS = 4
-POINTS_OF_HISTORY = 500  # Number of data points to show on the graphs
-VISIBLE_SECONDS = 5
-
-# --- Simulation Components ---
-
-class PIDController:
-    """Implements a PID controller."""
-    def __init__(self, Kp, Ki, Kd, dt):
-        self.Kp = Kp
-        self.Ki = Ki
-        self.Kd = Kd
-        self.dt = dt
-        self.integral = 0
-        self.previous_error = 0
-
-    def update(self, error):
-        # Proportional
-        if abs(error) > 1:
-            p_term = self.Kp * error
-        else:    
-            p_term = 0
-
-        # Integral
-        self.integral += error * self.dt
-        i_term = self.Ki * self.integral
-
-        # Derivative
-        if abs(error - self.previous_error) > 3 :
-            derivative = (error - self.previous_error) / self.dt
-        else: 
-            derivative = 0
-        d_term = self.Kd * derivative
-        self.previous_error = error
-
-        return p_term + i_term + d_term, p_term, i_term, d_term
-
-    def reset_gains(self, Kp, Ki, Kd):
-        self.Kp = Kp
-        self.Ki = Ki
-        self.Kd = Kd
-        # Reset state when gains change to avoid instability
-        self.integral = 0.0
-        self.previous_error = 0.0
-
-class RobotModel:
-    """Simulates the robot's physical dynamics (the 'plant')."""
-    def __init__(self, dt):
-        self.dt = dt
-        self.x_axis_position = 0.0 # En el centro de la línea
-        self.x_axis_velocity = 0.0 # Sigue derecho
-        self.velocity = 10  # Initial velocity
-
-    def update(self, motor_voltage_change):
-        # Positivo indica que el motor empuja hacia la derecha
-        # Negativo indica que el motor empuja hacia la izquierda
-        x_axis_acceleration = (motor_voltage_change - FLOOR_DAMPING * self.x_axis_velocity) / ROBOT_MASS
-        self.x_axis_velocity += x_axis_acceleration * self.dt
-        self.x_axis_position += self.x_axis_velocity * self.dt
-        return self.x_axis_position
-
-class Simulation:
-    """Manages the simulation based on the block diagram."""
-    def __init__(self, dt=0.1):
-        self.dt = dt
-        self.time = 0.0
-        self.pid = PIDController(KP_CONFIG.initial, KI_CONFIG.initial, KD_CONFIG.initial, self.dt)
-        self.robot = RobotModel(self.dt)
-        self.light_perturbation = 0.0
-        self.movement_perturbation = 0.0
-        self.reference = REFERENCE_CONFIG.initial
-        self.history = {k: [] for k in [
-            'time', 
-            'error', 
-            'p_out', 'i_out', 'd_out', 
-            'response', 
-            'total_pert', 
-            'velocity', 
-            'reference',
-            'feedback_signal']}
-
-    def update(self):
-        # 1. Light perturbation (Pl(t)) affects the sensor reading.
-        # This creates the error signal fed into the controller.
-        feedback_signal = self.robot.x_axis_position + self.light_perturbation
-        error = self.reference - feedback_signal
-
-        # 2. PID controller calculates the required motor voltage.
-        pid_output, p, i, d = self.pid.update(error)
-
-        # 3. The motor acts on the robot.
-        self.robot.update(pid_output)
-
-        # 4. Movement perturbation (Pf(t)/Pi(t)) acts as a direct physical push on the robot.
-        self.robot.x_axis_position += self.movement_perturbation
-        response = self.robot.x_axis_position # The final response includes this push
-
-        # 5. Log data for plotting.
-        total_pert = self.light_perturbation + self.movement_perturbation
-        self.log_data(error, p, i, d, response, total_pert, self.reference, feedback_signal)
-        self.time += self.dt
-
-        # 6. Reset perturbations (they are Dirac-like, lasting one step).
-        self.light_perturbation = 0.0
-        self.movement_perturbation = 0.0
-
-        return self.history
-
-    def log_data(self, error, p, i, d, response, total_pert, reference, feedback_signal):
-        data_to_log = [self.time, error, p, i, d, response, total_pert, self.robot.x_axis_velocity, reference, feedback_signal]
-        for key, val in zip(self.history.keys(), data_to_log):
-            self.history[key].append(val)
-            if len(self.history[key]) > POINTS_OF_HISTORY:
-                self.history[key].pop(0)
-
-    def inject_light_perturbation(self, amplitude):
-        self.light_perturbation = amplitude
-
-    def inject_movement_perturbation(self, amplitude):
-        self.movement_perturbation = amplitude
-
-    def reset(self):
-        self.time = 0.0
-        self.robot = RobotModel(self.dt)
-        self.light_perturbation = 0.0
-        self.movement_perturbation = 0.0
-
-        # Limpiar historial de gráficos
-        for key in self.history:
-            self.history[key].clear()
+KP_CONFIG = SliceConfig(name="Kp", min=0.0, max=10.0, initial=INITIAL_KP)
+KI_CONFIG = SliceConfig(name="Ki", min=0.0, max=0.9, initial=INITIAL_KI)
+KD_CONFIG = SliceConfig(name="Kd", min=0.0, max=1.0, initial=INITIAL_KD)
+REFERENCE_CONFIG = SliceConfig(name="Reference", min=-5.0, max=5.0, initial=INITIAL_REFERENCE_VALUE)
 
 # --- GUI Application ---
 
@@ -168,8 +37,7 @@ class App(ctk.CTk):
         super().__init__()
         self.title("PID Line Follower Simulation")
         self.attributes('-fullscreen', True)
-
-        self.simulation = Simulation(dt=0.1)
+        self.simulation = control.Simulation(KP_CONFIG.initial, KD_CONFIG.initial, KI_CONFIG.initial, REFERENCE_CONFIG.initial)
         self.reference_slider = None
 
         # Configure grid layout
@@ -195,7 +63,7 @@ class App(ctk.CTk):
 
         self.running = True
         self.paused = False
-        self.after_id = self.after(50, self.update_loop)
+        self.after_id = self.after(SCAN_TIME, self.update_loop)
 
     def setup_controls(self):
         self.kp_slider = self.create_slider(KP_CONFIG)
@@ -257,7 +125,6 @@ class App(ctk.CTk):
         total_spacing = spacing * (len(visible_indices) - 1)
         available_height = top - bottom - total_spacing
 
-        # Iniciar desde la parte superior (top)
         current_top = top
 
         for i in range(len(self.axes)):
@@ -304,13 +171,13 @@ class App(ctk.CTk):
         kp = self.kp_slider.get()
         ki = self.ki_slider.get()
         kd = self.kd_slider.get()
-        self.simulation.pid.reset_gains(kp, ki, kd)
+        self.simulation.pid.reset_gains(kp, kd, ki)
 
     def inject_light(self):
-        self.simulation.inject_light_perturbation(amplitude=self.generate_signed_random(3.0, 5.0))
+        self.simulation.inject_light_perturbation(amplitude=utils.generate_signed_random(3.0, 5.0))
 
     def inject_movement(self):
-        self.simulation.inject_movement_perturbation(amplitude=self.generate_signed_random(5.0, 8.0))
+        self.simulation.inject_movement_perturbation(amplitude=utils.generate_signed_random(5.0, 8.0))
 
     def setup_plots(self):
         self.fig, self.axes = plt.subplots(6, 1, figsize=(10, 10), sharex=True, gridspec_kw={'height_ratios': [1, 1, 2, 1, 1, 1.5]})
@@ -343,12 +210,12 @@ class App(ctk.CTk):
         self.axes[3].set_ylim(-6, 6)
         self.axes[4].set_ylim(-10, 10)
         self.axes[5].set_ylim(-10, 10)
-        self.axes[5].axhspan(-LINE_WIDTH/2, LINE_WIDTH/2, facecolor='lightgreen', alpha=0.7, label='Line limits')
+        self.axes[5].axhspan(-(control.LINE_WIDTH)/2, control.LINE_WIDTH/2, facecolor='lightgreen', alpha=0.7, label='Line limits')
 
         self.axes[0].set_yticks(np.arange(-10, 11, 5))
         self.axes[1].set_yticks(np.arange(-10, 11, 5))
         self.axes[2].set_yticks(np.arange(-40, 41, 10))
-        self.axes[3].set_yticks(np.arange(-5, 6, 5))
+        self.axes[3].set_yticks(np.arange(-6, 7, 5))
         self.axes[4].set_yticks(np.arange(-10, 11, 5))
         self.axes[5].set_yticks(np.arange(-10, 11, 5))
 
@@ -356,7 +223,9 @@ class App(ctk.CTk):
             if i == 2:
                 ax.legend(loc='upper right', bbox_to_anchor=(1, 1), ncol=3)
             else:
-                ax.legend(loc='upper right')
+                _, labels = ax.get_legend_handles_labels()
+                if labels:
+                    ax.legend(loc='upper right')
             ax.grid(True)
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_frame)
@@ -432,12 +301,6 @@ class App(ctk.CTk):
         self.simulation.reset()
         self.update_pid_gains()
         self.update_reference_value(REFERENCE_CONFIG.initial)
-
-    def generate_signed_random(self, min_value, max_value):
-        rnd = random.uniform(-max_value, max_value)
-        if (abs(rnd) < min_value):
-            return self.generate_signed_random(min_value, max_value)
-        return rnd
 
     def save_full_plot(self):
         history = self.simulation.history

@@ -14,13 +14,14 @@
   - [ ] Proporcional ON-OFF o por umbrales
 - [ ] Agregar unidades y tipos de señales
 - [ ] Cambiar las variables que corresponen a px (ej. feedback_signal)
-- [ ] Chequear que quede actualizado el requirements.txt
+- [ ] Chequear que quede actualizado el requirements.txt, readme, informe
 - [ ] Chequear que no se vaya de los +-10cm el robot en position
 
 ## 💡 Ideas futuras
 
 - [ ] Hacer que el controlador no haga nada cuando sale de la zona de control
 - [ ] Agregar diagrama de bloques para ejemplificar cada gráfico
+- [ ] Hacer que el gráfico muestre una señal discreta cuando corresponde
 
 ## Hecho
 
