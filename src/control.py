@@ -1,21 +1,30 @@
 # Constants
 ## Scan
-DT = 0.1                        # (ms)      # Defines how much virtual time advances per simulation cycle
-
-## Controller
-PROPORTIONAL_THRESHOLD = 1      # (px)
-MIN_DERIVATIVE_SLOPE = 3        
+DT = 0.1                                    # (ms)      # Defines how much virtual time advances per simulation cycle      
 
 ## Context
-FLOOR_DAMPING = 0.5             # (kg/s) 
-LINE_WIDTH = 1.8                # (cm)
-PX_CM_RELATION = 6.83           # (px/cm)
+FLOOR_DAMPING = 0.5                         # (kg/s) 
+LINE_WIDTH = 1.8                            # (cm)
+PX_CM_RELATION = 6.83                       # (px/cm)
+V_CM_RELATION = 3                           # (V/cm)
+
+## Controller
+PROPORTIONAL_THRESHOLD = 1 * PX_CM_RELATION # (px)
+MIN_DERIVATIVE_SLOPE = 4 * PX_CM_RELATION      
 
 ## Robot
-ROBOT_MASS = 1.0                # (kg)  
+ROBOT_MASS = 1.0                            # (kg)  
 
 ## History
-POINTS_OF_HISTORY = 500                     # Number of data points to show on the graphs
+POINTS_OF_HISTORY = 500                                 # Number of data points to show on the graphs
+
+# reference (theta_i) -> px
+# error (e) -> px
+# pid_output -> volts
+# response (theta_0) -> cm
+# light_perturbation (Pl) -> cm
+# movement_perturbation (Pm) -> cm
+# camera_output -> px
 
 class PIDController:
     def __init__(self, Kp, Kd, Ki):
@@ -37,7 +46,7 @@ class PIDController:
         i_term = self.Ki * self.integral
 
         # Derivative
-        if abs(error - self.previous_error) > MIN_DERIVATIVE_SLOPE :
+        if abs(error - self.previous_error) > MIN_DERIVATIVE_SLOPE:
             derivative = (error - self.previous_error) / DT
         else: 
             derivative = 0
@@ -59,10 +68,10 @@ class RobotModel:
         self.x_axis_position = 0.0 # At the center of the line
         self.x_axis_velocity = 0.0 # Moves straight ahead
 
-    def update(self, motor_voltage_change):
+    def update(self, motor_voltage): 
         # Positive means the motor pushes to the right
         # Negative means the motor pushes to the left
-        x_axis_acceleration = (motor_voltage_change - FLOOR_DAMPING * self.x_axis_velocity) / ROBOT_MASS
+        x_axis_acceleration = (motor_voltage - FLOOR_DAMPING * self.x_axis_velocity) / ROBOT_MASS
         self.x_axis_velocity += x_axis_acceleration * DT
         self.x_axis_position += self.x_axis_velocity * DT
         return self.x_axis_position
@@ -80,14 +89,15 @@ class Simulation:
     def update(self):
         # 1. Light perturbation (Pl(t)) affects the sensor reading.
         # This creates the error signal fed into the controller.
-        feedback_signal = self.robot.x_axis_position + self.light_perturbation
+        feedback_signal = (self.robot.x_axis_position + self.light_perturbation)*PX_CM_RELATION
         error = self.reference - feedback_signal
 
         # 2. PID controller calculates the required motor voltage.
         pid_output, p, i, d = self.pid.update(error)
+        motor_voltage = pid_output/PX_CM_RELATION * V_CM_RELATION
 
         # 3. The motor acts on the robot.
-        self.robot.update(pid_output)
+        self.robot.update(motor_voltage)
 
         # 4. Movement perturbation (Pf(t)/Pi(t)) acts as a direct physical push on the robot.
         self.robot.x_axis_position += self.movement_perturbation

@@ -28,7 +28,7 @@ class SliceConfig:
 KP_CONFIG = SliceConfig(name="Kp", min=0.0, max=10.0, initial=INITIAL_KP)
 KI_CONFIG = SliceConfig(name="Ki", min=0.0, max=0.9, initial=INITIAL_KI)
 KD_CONFIG = SliceConfig(name="Kd", min=0.0, max=1.0, initial=INITIAL_KD)
-REFERENCE_CONFIG = SliceConfig(name="Reference", min=-5.0, max=5.0, initial=INITIAL_REFERENCE_VALUE)
+REFERENCE_CONFIG = SliceConfig(name="Reference", min=-5.0*control.PX_CM_RELATION, max=5.0*control.PX_CM_RELATION, initial=INITIAL_REFERENCE_VALUE)
 
 # --- GUI Application ---
 
@@ -80,7 +80,7 @@ class App(ctk.CTk):
         self.graph_toggles = []
         graph_names = [
             "Perturbations", "Error", "PID", "Reference",
-            "Feedback", "Position & Velocity"
+            "Feedback", "Position"
         ]
 
         for i, name in enumerate(graph_names):
@@ -196,27 +196,27 @@ class App(ctk.CTk):
             'resp': self.axes[5].plot([], [], label='Position (θₒ)', color='tab:blue')[0]
         }
 
-        self.axes[0].set_title("Perturbations", loc='left', fontsize=12)
-        self.axes[1].set_title("Error Signal (e)", loc='left', fontsize=12)
-        self.axes[2].set_title("PID Controller Outputs", loc='left', fontsize=12)
-        self.axes[3].set_title("Reference Value", loc='left', fontsize=12)
-        self.axes[4].set_title("Feedback Signal", loc='left', fontsize=12)
-        self.axes[5].set_title("System Response", loc='left', fontsize=12)
+        self.axes[0].set_title("Perturbations (cm)", loc='left', fontsize=12)
+        self.axes[1].set_title("Error Signal (px)", loc='left', fontsize=12)
+        self.axes[2].set_title("PID Controller Outputs (px)", loc='left', fontsize=12)
+        self.axes[3].set_title("Reference Value (px)", loc='left', fontsize=12)
+        self.axes[4].set_title("Feedback Signal (px)", loc='left', fontsize=12)
+        self.axes[5].set_title("System Response (cm)", loc='left', fontsize=12)
         self.axes[5].set_xlabel("Time (s)")
 
         self.axes[0].set_ylim(-10, 10)
-        self.axes[1].set_ylim(-10, 10)
-        self.axes[2].set_ylim(-40, 40)
-        self.axes[3].set_ylim(-6, 6)
-        self.axes[4].set_ylim(-10, 10)
+        self.axes[1].set_ylim(-10*control.PX_CM_RELATION, 10*control.PX_CM_RELATION)
+        self.axes[2].set_ylim(-40*control.PX_CM_RELATION, 40*control.PX_CM_RELATION)
+        self.axes[3].set_ylim(-6*control.PX_CM_RELATION, 6*control.PX_CM_RELATION)
+        self.axes[4].set_ylim(-10*control.PX_CM_RELATION, 10*control.PX_CM_RELATION)
         self.axes[5].set_ylim(-10, 10)
         self.axes[5].axhspan(-(control.LINE_WIDTH)/2, control.LINE_WIDTH/2, facecolor='lightgreen', alpha=0.7, label='Line limits')
 
         self.axes[0].set_yticks(np.arange(-10, 11, 5))
-        self.axes[1].set_yticks(np.arange(-10, 11, 5))
-        self.axes[2].set_yticks(np.arange(-40, 41, 10))
-        self.axes[3].set_yticks(np.arange(-6, 7, 5))
-        self.axes[4].set_yticks(np.arange(-10, 11, 5))
+        self.axes[1].set_yticks(np.arange(-10*control.PX_CM_RELATION, 11*control.PX_CM_RELATION, 5*control.PX_CM_RELATION))
+        self.axes[2].set_yticks(np.arange(-40*control.PX_CM_RELATION, 41*control.PX_CM_RELATION, 10*control.PX_CM_RELATION))
+        self.axes[3].set_yticks(np.arange(-5*control.PX_CM_RELATION, 6*control.PX_CM_RELATION, 5*control.PX_CM_RELATION))
+        self.axes[4].set_yticks(np.arange(-10*control.PX_CM_RELATION, 11*control.PX_CM_RELATION, 5*control.PX_CM_RELATION))
         self.axes[5].set_yticks(np.arange(-10, 11, 5))
 
         for i, ax in enumerate(self.axes):
@@ -227,6 +227,7 @@ class App(ctk.CTk):
                 if labels:
                     ax.legend(loc='upper right')
             ax.grid(True)
+            ax.tick_params(axis='y', labelsize=8)
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_frame)
         self.canvas.get_tk_widget().pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)

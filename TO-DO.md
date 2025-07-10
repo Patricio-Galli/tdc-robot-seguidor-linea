@@ -3,17 +3,15 @@
 ## 🔧 En progreso
 
 - [ ] Interfaz responsive
-- [ ] Valor de referencia ajustable
 
 ## 📌 Por hacer (Backlog)
 
-- [ ] Encontrar buenos valores para kp, ki, kd (Señales digitales - pixeles)
+- [ ] Mejorar yticks de px (números redondos)
+- [ ] Encontrar buenos valores para kp, ki, kd
 - [ ] Chequear controladores 
   - [ ] Controlador integral (errores anteriores VS mismo scan) - en este momento no hace nada
   - [ ] Chequear direcciones de los controladores, más que nada derivativo
   - [ ] Proporcional ON-OFF o por umbrales
-- [ ] Agregar unidades y tipos de señales
-- [ ] Cambiar las variables que corresponen a px (ej. feedback_signal)
 - [ ] Chequear que quede actualizado el requirements.txt, readme, informe
 - [ ] Chequear que no se vaya de los +-10cm el robot en position
 
@@ -38,3 +36,6 @@
 - [X] Hacer que se vea la línea de posición por sobre la de velocidad
 - [X] Permitir ocultar y mostrar cada gráfico
 - [X] Sacar etiquetas redundantes
+- [X] Valor de referencia ajustable
+- [X] Agregar unidades y tipos de señales
+- [X] Cambiar las variables que corresponen a px (ej. feedback_signal)
