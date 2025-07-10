@@ -42,7 +42,7 @@ class PIDController:
             p_term = 0
 
         # Integral
-        self.integral += error * DT
+        self.integral = error * DT
         i_term = self.Ki * self.integral
 
         # Derivative
