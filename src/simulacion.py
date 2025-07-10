@@ -17,6 +17,15 @@ INITIAL_KP = 1.5
 INITIAL_KI = 0.1
 INITIAL_KD = 0.6
 
+## Axes
+PX_CM = control.PX_CM_RELATION
+Y_LIM0 = 10
+Y_LIM1 = utils.ceil_to_nearest(10 * PX_CM, 5)
+Y_LIM2 = utils.ceil_to_nearest(40 * PX_CM, 10)
+Y_LIM3 = utils.ceil_to_nearest(5 * PX_CM, 5)
+Y_LIM4 = utils.ceil_to_nearest(10 * PX_CM, 5)
+Y_LIM5 = 10
+
 class SliceConfig:
     def __init__(self, name, min, max, initial):
         self.name = name
@@ -28,7 +37,7 @@ class SliceConfig:
 KP_CONFIG = SliceConfig(name="Kp", min=0.0, max=10.0, initial=INITIAL_KP)
 KI_CONFIG = SliceConfig(name="Ki", min=0.0, max=0.9, initial=INITIAL_KI)
 KD_CONFIG = SliceConfig(name="Kd", min=0.0, max=1.0, initial=INITIAL_KD)
-REFERENCE_CONFIG = SliceConfig(name="Reference", min=-5.0*control.PX_CM_RELATION, max=5.0*control.PX_CM_RELATION, initial=INITIAL_REFERENCE_VALUE)
+REFERENCE_CONFIG = SliceConfig(name="Reference", min=-5.0*PX_CM, max=5.0*PX_CM, initial=INITIAL_REFERENCE_VALUE)
 
 # --- GUI Application ---
 
@@ -204,20 +213,20 @@ class App(ctk.CTk):
         self.axes[5].set_title("System Response (cm)", loc='left', fontsize=12)
         self.axes[5].set_xlabel("Time (s)")
 
-        self.axes[0].set_ylim(-10, 10)
-        self.axes[1].set_ylim(-10*control.PX_CM_RELATION, 10*control.PX_CM_RELATION)
-        self.axes[2].set_ylim(-40*control.PX_CM_RELATION, 40*control.PX_CM_RELATION)
-        self.axes[3].set_ylim(-6*control.PX_CM_RELATION, 6*control.PX_CM_RELATION)
-        self.axes[4].set_ylim(-10*control.PX_CM_RELATION, 10*control.PX_CM_RELATION)
-        self.axes[5].set_ylim(-10, 10)
+        self.axes[0].set_ylim(-Y_LIM0, Y_LIM0)
+        self.axes[1].set_ylim(-Y_LIM1, Y_LIM1)
+        self.axes[2].set_ylim(-Y_LIM2, Y_LIM2)
+        self.axes[3].set_ylim(-Y_LIM3, Y_LIM3)
+        self.axes[4].set_ylim(-Y_LIM4, Y_LIM4)
+        self.axes[5].set_ylim(-Y_LIM5, Y_LIM5)
         self.axes[5].axhspan(-(control.LINE_WIDTH)/2, control.LINE_WIDTH/2, facecolor='lightgreen', alpha=0.7, label='Line limits')
 
-        self.axes[0].set_yticks(np.arange(-10, 11, 5))
-        self.axes[1].set_yticks(np.arange(-10*control.PX_CM_RELATION, 11*control.PX_CM_RELATION, 5*control.PX_CM_RELATION))
-        self.axes[2].set_yticks(np.arange(-40*control.PX_CM_RELATION, 41*control.PX_CM_RELATION, 10*control.PX_CM_RELATION))
-        self.axes[3].set_yticks(np.arange(-5*control.PX_CM_RELATION, 6*control.PX_CM_RELATION, 5*control.PX_CM_RELATION))
-        self.axes[4].set_yticks(np.arange(-10*control.PX_CM_RELATION, 11*control.PX_CM_RELATION, 5*control.PX_CM_RELATION))
-        self.axes[5].set_yticks(np.arange(-10, 11, 5))
+        self.axes[0].set_yticks(np.arange(-Y_LIM0, Y_LIM0 + 1, 5))
+        self.axes[1].set_yticks(np.arange(-Y_LIM1, Y_LIM1 + 1, utils.ceil_to_nearest(5 * PX_CM, 5)))
+        self.axes[2].set_yticks(np.arange(-Y_LIM2, Y_LIM2 + 1, utils.ceil_to_nearest(10 * PX_CM, 10)))
+        self.axes[3].set_yticks(np.arange(-Y_LIM3, Y_LIM3 + 1, utils.ceil_to_nearest(5 * PX_CM, 5)))
+        self.axes[4].set_yticks(np.arange(-Y_LIM4, Y_LIM4 + 1, utils.ceil_to_nearest(5 * PX_CM, 5)))
+        self.axes[5].set_yticks(np.arange(-Y_LIM5, Y_LIM5 + 1, 5))
 
         for i, ax in enumerate(self.axes):
             if i == 2:

@@ -6,7 +6,6 @@
 
 ## 📌 Por hacer (Backlog)
 
-- [ ] Mejorar yticks de px (números redondos)
 - [ ] Encontrar buenos valores para kp, ki, kd
 - [ ] Chequear controladores 
   - [ ] Controlador integral (errores anteriores VS mismo scan) - en este momento no hace nada
@@ -39,3 +38,4 @@
 - [X] Valor de referencia ajustable
 - [X] Agregar unidades y tipos de señales
 - [X] Cambiar las variables que corresponen a px (ej. feedback_signal)
+- [X] Mejorar yticks de px (números redondos)
