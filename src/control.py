@@ -1,12 +1,12 @@
 # Constants
 ## Scan
-DT = 0.1                                    # (ms)      # Defines how much virtual time advances per simulation cycle      
+DT = 0.2                                    # (ms)      # Defines how much virtual time advances per simulation cycle      
 
 ## Context
 FLOOR_DAMPING = 0.5                         # (kg/s) 
 LINE_WIDTH = 1.8                            # (cm)
 PX_CM_RELATION = 6.83                       # (px/cm)
-V_CM_RELATION = 3                           # (V/cm)
+V_CM_RELATION = 2.5                         # (V/cm)
 
 ## Controller
 PROPORTIONAL_THRESHOLD = 1 * PX_CM_RELATION # (px)

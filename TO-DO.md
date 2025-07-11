@@ -6,13 +6,10 @@
 
 ## 📌 Por hacer (Backlog)
 
-- [ ] Encontrar buenos valores para kp, ki, kd
 - [ ] Chequear controladores 
-  - [ ] Controlador integral (errores anteriores VS mismo scan) - en este momento no hace nada
+  - [ ] Controlador integral (errores anteriores VS mismo scan)
   - [ ] Chequear direcciones de los controladores, más que nada derivativo
   - [ ] Proporcional ON-OFF o por umbrales
-- [ ] Chequear que quede actualizado el requirements.txt, informe
-- [ ] Chequear que no se vaya de los +-10cm el robot en position
 
 ## 💡 Ideas futuras
 

@@ -9,19 +9,19 @@ import utils
 # --- Constants ---
 ## Interface
 SCAN_TIME = 50                  # (ms)      # Controls how often the interface updates on screen
-VISIBLE_SECONDS = 5
+VISIBLE_SECONDS = 15
 
 ## Sliders
 INITIAL_REFERENCE_VALUE = 0.0   # (px)
-INITIAL_KP = 1.5
-INITIAL_KI = 0.1
-INITIAL_KD = 0.6
+INITIAL_KP = 1.0
+INITIAL_KI = 0.7
+INITIAL_KD = 0.5
 
 ## Axes
 PX_CM = control.PX_CM_RELATION
 Y_LIM0 = 10
 Y_LIM1 = utils.ceil_to_nearest(10 * PX_CM, 5)
-Y_LIM2 = utils.ceil_to_nearest(40 * PX_CM, 10)
+Y_LIM2 = utils.ceil_to_nearest(20 * PX_CM, 10)
 Y_LIM3 = utils.ceil_to_nearest(5 * PX_CM, 5)
 Y_LIM4 = utils.ceil_to_nearest(10 * PX_CM, 5)
 Y_LIM5 = 10
@@ -183,10 +183,10 @@ class App(ctk.CTk):
         self.simulation.pid.reset_gains(kp, kd, ki)
 
     def inject_light(self):
-        self.simulation.inject_light_perturbation(amplitude=utils.generate_signed_random(3.0, 5.0))
+        self.simulation.inject_light_perturbation(amplitude=utils.generate_signed_random(2.0, 5.0))
 
     def inject_movement(self):
-        self.simulation.inject_movement_perturbation(amplitude=utils.generate_signed_random(5.0, 8.0))
+        self.simulation.inject_movement_perturbation(amplitude=utils.generate_signed_random(3.0, 6.0))
 
     def setup_plots(self):
         self.fig, self.axes = plt.subplots(6, 1, figsize=(10, 10), sharex=True, gridspec_kw={'height_ratios': [1, 1, 2, 1, 1, 1.5]})
